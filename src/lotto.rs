@@ -5,6 +5,32 @@ use num_integer::binomial;
 use num_rational::BigRational;
 use num_traits::{cast::ToPrimitive, Pow};
 
+pub struct LottoResult<'a> {
+    pub hash: &'a str,
+    pub rules: Vec<Box<dyn LottoRuleFamily<'a> + 'a>>,
+}
+
+impl<'a> LottoResult<'a> {
+    pub fn new(hash: &'a str) -> Self {
+        let mut rules: Vec<Box<dyn LottoRuleFamily<'a> + 'a>> = vec![];
+        if let Some(rule) = NOfAKind::new(hash) {
+            rules.push(Box::new(rule));
+        }
+        if let Some(rule) = Flush::new(hash) {
+            rules.push(Box::new(rule));
+        }
+        if let Some(rule) = Straight::new(hash) {
+            rules.push(Box::new(rule));
+        }
+        rules.sort_by_key(|r| -(r.points() as i64));
+        Self { hash, rules }
+    }
+
+    pub fn total_points(&self) -> u64 {
+        self.rules.iter().map(|r| r.points()).sum()
+    }
+}
+
 pub trait LottoRuleFamily<'a> {
     fn name(&self) -> String;
     fn description(&self) -> String;
@@ -12,20 +38,7 @@ pub trait LottoRuleFamily<'a> {
     fn points(&self) -> u64 {
         (100.0 / self.probability()).ceil() as u64
     }
-}
-
-pub fn matching_rules<'a>(commit: &'a str) -> Vec<Box<dyn LottoRuleFamily<'a> + 'a>> {
-    let mut rules: Vec<Box<dyn LottoRuleFamily<'a> + 'a>> = vec![];
-    if let Some(rule) = NOfAKind::new(commit) {
-        rules.push(Box::new(rule));
-    }
-    if let Some(rule) = Flush::new(commit) {
-        rules.push(Box::new(rule));
-    }
-    if let Some(rule) = Straight::new(commit) {
-        rules.push(Box::new(rule));
-    }
-    rules
+    fn positions(&self) -> Vec<Vec<usize>>;
 }
 
 pub struct NOfAKind<'a> {
@@ -71,9 +84,9 @@ impl<'a> LottoRuleFamily<'a> for NOfAKind<'a> {
     fn description(&self) -> String {
         let mut iter = self.values.iter();
         let (k, v) = iter.next().unwrap();
-        let mut s = format!("{} {}s", v, k);
+        let mut s = format!("{} x {}", v, k);
         for (k, v) in iter {
-            s.push_str(&format!(", {} {}s", v, k));
+            s.push_str(&format!(", {} x {}", v, k));
         }
         s
     }
@@ -91,6 +104,22 @@ impl<'a> LottoRuleFamily<'a> for NOfAKind<'a> {
                 .pow((self.commit.len() - self.values.values().sum::<usize>()) as u32);
         let denominator = BigInt::from(16).pow(self.commit.len() as u32);
         BigRational::new(numerator, denominator).to_f64().unwrap()
+    }
+
+    fn positions(&self) -> Vec<Vec<usize>> {
+        let mut positions = vec![];
+        let mut values: Vec<_> = self.values.iter().collect();
+        values.sort_by_key(|(_, v)| -(**v as i64));
+        for (k, v) in self.values.iter() {
+            let mut pos = vec![];
+            for (i, c) in self.commit.chars().enumerate() {
+                if c == *k {
+                    pos.push(i);
+                }
+            }
+            positions.push(pos);
+        }
+        positions
     }
 }
 
@@ -124,9 +153,9 @@ impl<'a> LottoRuleFamily<'a> for Flush<'a> {
 
     fn description(&self) -> String {
         if self.letters {
-            "All letters".into()
+            "all letters".into()
         } else {
-            "All numbers".into()
+            "all numbers".into()
         }
     }
 
@@ -136,6 +165,18 @@ impl<'a> LottoRuleFamily<'a> for Flush<'a> {
         } else {
             (6.0 / 16.0).pow(self.commit.len() as f64)
         }
+    }
+
+    fn positions(&self) -> Vec<Vec<usize>> {
+        let mut positions = vec![];
+        for (pos, char) in self.commit.chars().enumerate() {
+            if (self.letters && char.is_ascii_alphabetic())
+                || (!self.letters && char.is_ascii_digit())
+            {
+                positions.push(pos);
+            }
+        }
+        return vec![positions];
     }
 }
 
@@ -217,6 +258,19 @@ impl<'a> LottoRuleFamily<'a> for Straight<'a> {
         let denominator = BigInt::from(16).pow(self.commit.len() as u32);
         BigRational::new(numerator, denominator).to_f64().unwrap()
     }
+
+    fn positions(&self) -> Vec<Vec<usize>> {
+        let mut positions = vec![];
+        for char in self.run.chars() {
+            for (pos, c) in self.commit.chars().enumerate() {
+                if c == char {
+                    positions.push(pos);
+                    break;
+                }
+            }
+        }
+        return vec![positions];
+    }
 }
 
 fn permutations(n: u32, k: u32) -> BigInt {
@@ -251,6 +305,19 @@ mod test {
             rule.probability()
         );
         assert_eq!(rule.points(), 340547);
+        let mut pos = rule.positions();
+        pos.sort();
+        assert_eq!(
+            pos,
+            vec![
+                vec![0, 1],
+                vec![2, 3],
+                vec![4, 5],
+                vec![6, 7],
+                vec![8, 9],
+                vec![10, 11]
+            ]
+        );
     }
 
     #[test]
@@ -265,6 +332,8 @@ mod test {
             rule.probability()
         );
         assert_eq!(rule.points(), 1678);
+        let pos = rule.positions();
+        assert_eq!(pos, vec![vec![0, 1, 2, 3, 4, 5],]);
     }
 
     #[test]
@@ -279,6 +348,8 @@ mod test {
             rule.probability()
         );
         assert_eq!(rule.points(), 167772160);
+        let pos = rule.positions();
+        assert_eq!(pos, vec![vec![0, 1, 2, 3, 4, 5],]);
     }
 
     #[test]

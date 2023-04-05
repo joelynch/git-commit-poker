@@ -1,12 +1,18 @@
 mod errors;
 mod lotto;
+mod output;
 
-use crate::{errors::LottoError, lotto::matching_rules};
+use lotto::LottoResult;
+use output::{TerminalOutputer, TerminalOutputerImpl};
+
+use errors::LottoError;
 use std::{env, process::Command};
 
 fn git_commit(args: Vec<String>) -> Result<(), LottoError> {
     let mut cmd = Command::new("git");
-    if !cmd.arg("commit").args(args).status()?.success() {
+    if cmd.arg("commit").args(args).status()?.success() {
+        print!("\x1B[A\x1B[2K");
+    } else {
         return Err(LottoError::GitFailed);
     }
     Ok(())
@@ -25,18 +31,18 @@ fn last_commit_hash() -> Result<String, LottoError> {
     Ok(hash)
 }
 
-fn main() -> Result<(), LottoError> {
-    let commit_args: Vec<String> = env::args().skip(1).collect();
+fn commit_lotto(output: impl TerminalOutputer, commit_args: Vec<String>) -> Result<(), LottoError> {
+    output.pre_commit();
     git_commit(commit_args)?;
     let hash = last_commit_hash()?;
-    println!("Committed with hash {}", hash);
-    matching_rules(&hash).into_iter().for_each(|rule| {
-        println!(
-            "{}: {}.  You get {} points for this one.  Nice!",
-            rule.name(),
-            rule.description(),
-            rule.points(),
-        )
-    });
+    let results = LottoResult::new(&hash);
+    output.post_commit(&results);
+    Ok(())
+}
+
+fn main() -> Result<(), LottoError> {
+    let commit_args: Vec<String> = env::args().skip(1).collect();
+    let output = TerminalOutputerImpl::new();
+    commit_lotto(output, commit_args);
     Ok(())
 }
