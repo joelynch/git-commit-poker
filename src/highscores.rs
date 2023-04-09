@@ -16,17 +16,17 @@ pub struct ScoreInfo {
     pub repo: String,
     pub commit: String,
     pub score: u64,
-    pub date: String,
+    pub date: i64,
     pub rules: Vec<String>,
 }
 
 impl ScoreInfo {
     pub fn new(result: &LottoResult, commit: &Commit) -> Self {
         ScoreInfo {
-            repo: commit.repo.clone(),
+            repo: commit.repo.to_str().unwrap().to_string(),
             commit: commit.hash.clone(),
             score: result.total_points(),
-            date: commit.date.clone(),
+            date: commit.date.parse().unwrap(),
             rules: result.rules.iter().map(|r| r.name()).collect(),
         }
     }
@@ -34,7 +34,7 @@ impl ScoreInfo {
 
 pub trait HighScores {
     fn save(&mut self, result: ScoreInfo) -> Result<(), LottoError>;
-    fn load(&mut self, repo: &str) -> Result<Vec<ScoreInfo>, LottoError>;
+    fn load(&mut self, repo: Option<&Path>) -> Result<Vec<ScoreInfo>, LottoError>;
 }
 
 pub struct HighScoresImpl {
@@ -47,7 +47,7 @@ impl HighScores for HighScoresImpl {
             .map_err(LottoError::ApplicationDirError)
     }
 
-    fn load(&mut self, repo: &str) -> Result<Vec<ScoreInfo>, LottoError> {
+    fn load(&mut self, repo: Option<&Path>) -> Result<Vec<ScoreInfo>, LottoError> {
         self.load_inner(repo)
             .map_err(LottoError::ApplicationDirError)
     }
@@ -78,13 +78,19 @@ impl HighScoresImpl {
         HighScoresImpl::new(&path)
     }
 
-    fn load_inner(&mut self, repo: &str) -> anyhow::Result<Vec<ScoreInfo>> {
+    fn load_inner(&mut self, repo: Option<&Path>) -> anyhow::Result<Vec<ScoreInfo>> {
         self.file.lock_shared()?;
-        let mut scores = self
-            .scores()?
-            .into_iter()
-            .filter(|s| repo == s.repo)
-            .collect::<Vec<_>>();
+        let mut scores = if let Some(repo) = repo {
+            let mut res = vec![];
+            for score in self.scores()? {
+                if refer_to_same_file(&score.repo, repo)? {
+                    res.push(score);
+                }
+            }
+            res
+        } else {
+            self.scores()?
+        };
         self.file.unlock()?;
         scores.sort_by_key(|s| -(s.score as i64));
         Ok(scores)
@@ -109,4 +115,8 @@ impl HighScoresImpl {
         self.file.rewind()?;
         serde_json::from_reader(&self.file).map_err(Into::into)
     }
+}
+
+fn refer_to_same_file(path1: impl AsRef<Path>, path2: impl AsRef<Path>) -> anyhow::Result<bool> {
+    Ok(path1.as_ref().canonicalize()? == path2.as_ref().canonicalize()?)
 }

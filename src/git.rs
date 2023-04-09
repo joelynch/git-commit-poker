@@ -1,11 +1,11 @@
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 
 use git2::Repository;
 
 use crate::errors::LottoError;
 
 pub struct Commit {
-    pub repo: String,
+    pub repo: PathBuf,
     pub hash: String,
     pub full_hash: String,
     pub date: String,
@@ -21,7 +21,7 @@ impl Commit {
         summary: Option<String>,
     ) -> Self {
         Commit {
-            repo,
+            repo: repo.into(),
             hash,
             full_hash,
             date,
