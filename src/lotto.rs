@@ -66,7 +66,7 @@ impl<'a> NOfAKind<'a> {
 
 impl<'a> LottoRuleFamily<'a> for NOfAKind<'a> {
     fn name(&self) -> String {
-        if self.values.len() == 0 {
+        if self.values.is_empty() {
             return "N/A".into();
         }
         let val = self.values.values().next().unwrap();
@@ -92,7 +92,7 @@ impl<'a> LottoRuleFamily<'a> for NOfAKind<'a> {
     }
 
     fn probability(&self) -> f64 {
-        if self.values.len() == 0 {
+        if self.values.is_empty() {
             return 0.0;
         }
         let numerator = self
@@ -110,7 +110,7 @@ impl<'a> LottoRuleFamily<'a> for NOfAKind<'a> {
         let mut positions = vec![];
         let mut values: Vec<_> = self.values.iter().collect();
         values.sort_by_key(|(_, v)| -(**v as i64));
-        for (k, v) in self.values.iter() {
+        for (k, _) in self.values.iter() {
             let mut pos = vec![];
             for (i, c) in self.commit.chars().enumerate() {
                 if c == *k {
@@ -176,7 +176,7 @@ impl<'a> LottoRuleFamily<'a> for Flush<'a> {
                 positions.push(pos);
             }
         }
-        return vec![positions];
+        vec![positions]
     }
 }
 
@@ -269,7 +269,7 @@ impl<'a> LottoRuleFamily<'a> for Straight<'a> {
                 }
             }
         }
-        return vec![positions];
+        vec![positions]
     }
 }
 

@@ -17,5 +17,3 @@ Total points: 258212
 ## TODO
 
 - [ ] Fix probabilities
-- [ ] Gameify terminal output
-- [ ] Keep track of high scores etc

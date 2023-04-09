@@ -4,6 +4,7 @@ use std::io;
 pub enum LottoError {
     GitNotPresent(io::Error),
     GitFailed,
+    ApplicationDirError(anyhow::Error),
 }
 
 impl From<io::Error> for LottoError {
@@ -17,6 +18,9 @@ impl std::fmt::Display for LottoError {
         match self {
             LottoError::GitNotPresent(_) => write!(f, "Could not find git on path"),
             LottoError::GitFailed => write!(f, "Git commit failed"),
+            LottoError::ApplicationDirError(e) => {
+                write!(f, "Error using application data directory: {}", e)
+            }
         }
     }
 }

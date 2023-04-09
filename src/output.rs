@@ -1,9 +1,9 @@
 use std::{
-    io::{stdout, Stdout, Write},
+    io::{stdout, Write},
     time::Duration,
 };
 
-use crate::lotto::LottoResult;
+use crate::{highscores::ScoreInfo, lotto::LottoResult};
 use colored::*;
 use rand::{seq::SliceRandom, thread_rng};
 
@@ -30,24 +30,13 @@ impl Colour {
             Colour::Cyan => text.cyan(),
         }
     }
-
-    pub fn colourize_background(&self, text: &str) -> ColoredString {
-        match self {
-            Colour::Black => text.on_black(),
-            Colour::Red => text.on_red(),
-            Colour::Green => text.on_green(),
-            Colour::Yellow => text.on_yellow(),
-            Colour::Blue => text.on_blue(),
-            Colour::Magenta => text.on_magenta(),
-            Colour::Cyan => text.on_cyan(),
-        }
-    }
 }
 
 pub trait TerminalOutputer {
     fn pre_commit(&self);
     fn post_commit(&self, result: &LottoResult);
     fn failed(&self);
+    fn high_score(&self, new: &ScoreInfo, old: &ScoreInfo);
 }
 
 pub struct TerminalOutputerImpl;
@@ -105,7 +94,7 @@ impl TerminalOutputer for TerminalOutputerImpl {
     fn post_commit(&self, result: &LottoResult) {
         let mut out = stdout();
         let mut flush = || out.flush().expect("could not flush stdout");
-        println!("{}", "done!");
+        println!("done!");
         print!("Your commit hash is ... ");
         flush();
         for c in Self::colourized_hash(result) {
@@ -133,5 +122,21 @@ impl TerminalOutputer for TerminalOutputerImpl {
 
     fn failed(&self) {
         println!("{}", "Failed to commit".red());
+    }
+
+    fn high_score(&self, new: &ScoreInfo, old: &ScoreInfo) {
+        println!(
+            "{}{}{}",
+            "New high score! ".green(),
+            new.score.to_string().green().bold(),
+            " points!".green()
+        );
+        println!("Previous high score:");
+        println!(
+            "    {} points from {}: {}",
+            old.score.to_string().bold(),
+            old.commit.bold(),
+            old.rules.join(", ")
+        );
     }
 }
