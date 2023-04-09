@@ -9,7 +9,7 @@ use std::env;
 fn main() -> Result<(), LottoError> {
     let commit_args: Vec<String> = env::args().skip(1).collect();
     let output = TerminalOutputerImpl::new();
-    let highscores = HighScoresImpl::default()?;
+    let highscores = HighScoresImpl::standard()?;
     commit_lotto(output, highscores, commit_args)
 }
 

@@ -41,6 +41,12 @@ pub trait TerminalOutputer {
 
 pub struct TerminalOutputerImpl;
 
+impl Default for TerminalOutputerImpl {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TerminalOutputerImpl {
     pub fn new() -> Self {
         TerminalOutputerImpl {}

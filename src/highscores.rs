@@ -70,7 +70,7 @@ impl HighScoresImpl {
         Ok(HighScoresImpl { file })
     }
 
-    pub fn default() -> Result<Self, LottoError> {
+    pub fn standard() -> Result<Self, LottoError> {
         let data_dir = ProjectDirs::from("com", "joelynch", "CommitLotto").ok_or(
             LottoError::ApplicationDirError(anyhow!("could not get data dir")),
         )?;

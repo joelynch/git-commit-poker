@@ -22,7 +22,7 @@ fn main() -> Result<(), LottoError> {
     let args = Cli::parse();
     match args {
         Cli::Highscores { n, repo } => {
-            HighScoresImpl::default()?
+            HighScoresImpl::standard()?
                 .load(repo.as_deref())?
                 .into_iter()
                 .take(n)
@@ -49,9 +49,6 @@ fn format_score(score: &ScoreInfo) -> String {
     };
     format!(
         "{}: {} points ({}) scored on {}",
-        score.commit,
-        score.score,
-        rules,
-        datetime.to_string()
+        score.commit, score.score, rules, datetime
     )
 }
